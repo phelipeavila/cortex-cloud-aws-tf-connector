@@ -16,17 +16,17 @@ The CF templates bundle everything into a single monolithic stack with an embedd
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Management / Target Account               │
+│                    Management / Target Account              │
 │                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │ Platform Role│  │ Scanner Role │  │ CloudTrail Role  │  │
-│  │  (iam.tf)    │  │  (iam.tf)    │  │  (iam.tf)        │  │
-│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
-│         │                 │                    │             │
-│  ┌──────┴─────────────────┴───┐   ┌───────────┴──────────┐ │
-│  │   Custom IAM Policies      │   │  SQS ← SNS ← CT     │ │
-│  │   (Discovery, ADS, DSPM,   │   │     (sqs.tf)         │ │
-│  │    Automation)              │   └──────────────────────┘ │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
+│  │ Platform Role│  │ Scanner Role │  │ CloudTrail Role  │   │
+│  │  (iam.tf)    │  │  (iam.tf)    │  │  (iam.tf)        │   │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘   │
+│         │                 │                   │             │
+│  ┌──────┴─────────────────┴───┐   ┌───────────┴──────────┐  │
+│  │   Custom IAM Policies      │   │  SQS ← SNS ← CT      │  │
+│  │   (Discovery, ADS, DSPM,   │   │     (sqs.tf)         │  │
+│  │    Automation)             │   └──────────────────────┘  │
 │  └────────────────────────────┘                             │
 │                                                             │
 │  ┌────────────────────────────────────────────────────────┐ │
@@ -36,14 +36,14 @@ The CF templates bundle everything into a single monolithic stack with an embedd
 │  └────────────────────────────────────────────────────────┘ │
 │                                                             │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │          CloudFormation StackSet                        │ │
+│  │          CloudFormation StackSet                       │ │
 │  │  Deploys roles + policies to every member account      │ │
 │  │  (organization & account_group modes only)             │ │
 │  │               (stackset.tf)                            │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
          │  StackSet auto-deploys to ──►
-┌────────┴────────────────────────────────────────────────────┐
+┌────────┴─────────────────────────────────────────────────────┐
 │                 Member Accounts (via StackSet)               │
 │  Each receives:                                              │
 │    • CortexPlatformRole + managed policies                   │
