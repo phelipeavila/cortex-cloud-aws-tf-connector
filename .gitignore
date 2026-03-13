@@ -21,6 +21,7 @@ crash.*.log
 # Terraform variable files (may contain secrets)
 *.tfvars
 *.tfvars.json
+*.tfvars.bak
 !example.tfvars
 !example.tfvars.json
 
