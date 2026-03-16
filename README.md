@@ -1,10 +1,103 @@
 # Cortex Cloud AWS Connector - Terraform
 
-Terraform implementation of the Palo Alto Networks Cortex Cloud AWS connector. This module provisions all the IAM roles, policies, and supporting resources needed to connect an AWS Organization, OU-level account group, or a single AWS account to Cortex XDR for cloud security posture management.
+Terraform implementation of the Palo Alto Networks Cortex Cloud AWS connector. This module provisions all the IAM roles, policies, and supporting resources needed to connect an AWS Organization, OU-level account group, or a single AWS account to Cortex Cloud for cloud security posture management.
+
+## Quick Start
+
+### Prerequisites
+
+- Terraform >= 1.5
+- AWS CLI configured with credentials for the target account:
+  - **Organization mode**: the root (management) account
+  - **Account group mode**: an account with CloudFormation StackSet permissions for the target OU
+  - **Account mode**: the single target account
+- For organization/account_group modes: Trusted access enabled for CloudFormation StackSets in AWS Organizations (see Step 2)
+- Python 3 with PyYAML (`pip install pyyaml`) for the tfvars generator script
+
+### Step 1: Download the CloudFormation template from Cortex Cloud
+
+1. Log in to the **Cortex Cloud** console.
+2. Navigate to **Settings > Data Sources & Integrations > Add new**.
+3. Select **AWS** and the appropriate account type:
+   - **Organization** for org-wide deployment
+   - **Account Group** for OU-level deployment
+   - **Account** for single account deployment
+4. Choose the modules you want to enable (Discovery, ADS, DSPM, etc.).
+5. Download the generated CloudFormation YAML template.
+
+> **The `upload_output_url` in the template expires after ~7 days.** If your downloaded template is older than 7 days, go back to the Cortex console and generate a fresh one before proceeding. An expired URL will cause the Lambda registration to fail.
+
+### Step 2: Enable CloudFormation StackSets trusted access (organization/account_group only)
+
+This is a one-time prerequisite on the management account. Skip for **account** mode.
+
+```bash
+aws organizations enable-aws-service-access \
+  --service-principal member.org.stacksets.cloudformation.amazonaws.com
+```
+
+You can verify it was enabled:
+
+```bash
+aws organizations list-aws-service-access-for-organization \
+  --query 'EnabledServicePrincipals[?ServicePrincipal==`member.org.stacksets.cloudformation.amazonaws.com`]'
+```
+
+### Step 3: Generate terraform.tfvars
+
+Run the generator script from the root of this project:
+
+```bash
+pip install pyyaml
+python generate_tfvars.py <your-cf-template.yml> -o terraform.tfvars
+```
+
+The script auto-detects the deployment mode from the CF template and generates mode-appropriate variables. It extracts the outpost ARN, external ID, template ID, upload URL, module versions, and enabled modules from the CF YAML. It also performs a version compatibility check against the known template versions this Terraform module was built for.
+
+### Step 4: Review and customize terraform.tfvars
+
+The generated file covers the core parameters, but several settings **must be added manually** because they are environment-specific and not present in the CloudFormation template:
+
+**Organization / OU Configuration** (organization and account_group modes):
+- `organizational_unit_id` -- target OU ID (required for account_group, optional for organization)
+
+**Account filtering** (organization and account_group modes):
+- `include_account_ids` -- deploy only to specific accounts
+- `exclude_account_ids` -- deploy to all accounts except specific ones
+
+Account scope must also be configured in the **Cortex Cloud** console when generating the template. Region-based scope filtering is not supported by this Terraform connector.
+
+**CloudTrail integration** (if using an existing trail for audit logs):
+- `cloudtrail_logs_bucket` -- S3 bucket name of your CloudTrail trail
+- `cloudtrail_sns_arn` -- SNS topic ARN for CloudTrail log delivery notifications
+- `cloudtrail_kms_arn` -- (optional) KMS key ARN if the trail is encrypted
+
+**VPC deployment** (if the Lambda must run inside a VPC):
+- `deploy_in_vpc = true`
+- `vpc_subnet_ids` -- private subnet IDs with NAT Gateway routes
+- `vpc_id` and/or `vpc_security_group_ids`
+
+See `terraform.tfvars.example` for full documentation of every variable.
+
+### Step 5: Deploy
+
+```bash
+terraform init
+terraform plan -var-file=terraform.tfvars
+terraform apply -var-file=terraform.tfvars
+```
+
+### Step 6: Verify
+
+After apply completes, check:
+- `registration_result` output confirms `Success = true`
+- `deployment_mode` output shows the expected mode
+- The connector appears in the Cortex Cloud console under **Settings > Cloud Security > Cloud Accounts**
+- For organization/account_group modes: The StackSet instances are deploying to member accounts (check the CloudFormation console under StackSets)
 
 ## Origin
 
-This Terraform project was created based on the CloudFormation templates generated by the Cortex XDR console when onboarding AWS accounts:
+This Terraform project was created based on the CloudFormation templates generated by the Cortex Cloud console when onboarding AWS accounts:
 
 - **Organization** -- `organization_connectors_aws_cf-*.yml`
 - **Account Group (OU)** -- `organization_connectors_aws_cf-*.yml` (OU-scoped variant)
@@ -166,99 +259,6 @@ The `enable_modules` variable controls which Cortex capabilities are deployed. B
 | `automation` | `false` | Automated Remediation - Write permissions across EC2, S3, RDS, IAM, KMS, EKS, etc. |
 
 When `dspm`, `registry`, or `serverless` is enabled, the Scanner Role (`CortexPlatformScannerRole`) is automatically created with the OUTPOST_SCANNER template version included in the registration payload.
-
-## Quick Start
-
-### Prerequisites
-
-- Terraform >= 1.5
-- AWS CLI configured with credentials for the target account:
-  - **Organization mode**: the root (management) account
-  - **Account group mode**: an account with CloudFormation StackSet permissions for the target OU
-  - **Account mode**: the single target account
-- For organization/account_group modes: Trusted access enabled for CloudFormation StackSets in AWS Organizations (see Step 2)
-- Python 3 with PyYAML (`pip install pyyaml`) for the tfvars generator script
-
-### Step 1: Download the CloudFormation template from Cortex Cloud
-
-1. Log in to the **Cortex Cloud** console.
-2. Navigate to **Settings > Data Sources & Integrations > Add new**.
-3. Select **AWS** and the appropriate account type:
-   - **Organization** for org-wide deployment
-   - **Account Group** for OU-level deployment
-   - **Account** for single account deployment
-4. Choose the modules you want to enable (Discovery, ADS, DSPM, etc.).
-5. Download the generated CloudFormation YAML template.
-
-> **The `upload_output_url` in the template expires after ~7 days.** If your downloaded template is older than 7 days, go back to the Cortex console and generate a fresh one before proceeding. An expired URL will cause the Lambda registration to fail.
-
-### Step 2: Enable CloudFormation StackSets trusted access (organization/account_group only)
-
-This is a one-time prerequisite on the management account. Skip for **account** mode.
-
-```bash
-aws organizations enable-aws-service-access \
-  --service-principal member.org.stacksets.cloudformation.amazonaws.com
-```
-
-You can verify it was enabled:
-
-```bash
-aws organizations list-aws-service-access-for-organization \
-  --query 'EnabledServicePrincipals[?ServicePrincipal==`member.org.stacksets.cloudformation.amazonaws.com`]'
-```
-
-### Step 3: Generate terraform.tfvars
-
-Run the generator script from the root of this project:
-
-```bash
-pip install pyyaml
-python generate_tfvars.py <your-cf-template.yml> -o terraform.tfvars
-```
-
-The script auto-detects the deployment mode from the CF template and generates mode-appropriate variables. It extracts the outpost ARN, external ID, template ID, upload URL, module versions, and enabled modules from the CF YAML. It also performs a version compatibility check against the known template versions this Terraform module was built for.
-
-### Step 4: Review and customize terraform.tfvars
-
-The generated file covers the core parameters, but several settings **must be added manually** because they are environment-specific and not present in the CloudFormation template:
-
-**Organization / OU Configuration** (organization and account_group modes):
-- `organizational_unit_id` -- target OU ID (required for account_group, optional for organization)
-
-**Account filtering** (organization and account_group modes):
-- `include_account_ids` -- deploy only to specific accounts
-- `exclude_account_ids` -- deploy to all accounts except specific ones
-
-Account scope must also be configured in the **Cortex Cloud** console when generating the template. Region-based scope filtering is not supported by this Terraform connector.
-
-**CloudTrail integration** (if using an existing trail for audit logs):
-- `cloudtrail_logs_bucket` -- S3 bucket name of your CloudTrail trail
-- `cloudtrail_sns_arn` -- SNS topic ARN for CloudTrail log delivery notifications
-- `cloudtrail_kms_arn` -- (optional) KMS key ARN if the trail is encrypted
-
-**VPC deployment** (if the Lambda must run inside a VPC):
-- `deploy_in_vpc = true`
-- `vpc_subnet_ids` -- private subnet IDs with NAT Gateway routes
-- `vpc_id` and/or `vpc_security_group_ids`
-
-See `terraform.tfvars.example` for full documentation of every variable.
-
-### Step 5: Deploy
-
-```bash
-terraform init
-terraform plan -var-file=terraform.tfvars
-terraform apply -var-file=terraform.tfvars
-```
-
-### Step 6: Verify
-
-After apply completes, check:
-- `registration_result` output confirms `Success = true`
-- `deployment_mode` output shows the expected mode
-- The connector appears in the Cortex Cloud console under **Settings > Cloud Security > Cloud Accounts**
-- For organization/account_group modes: The StackSet instances are deploying to member accounts (check the CloudFormation console under StackSets)
 
 ## Account Filtering (Optional)
 

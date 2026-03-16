@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate terraform.tfvars from a Cortex XDR CloudFormation template.
+"""Generate terraform.tfvars from a Cortex Cloud CloudFormation template.
 
 Requires: PyYAML (pip install pyyaml)
 
@@ -268,7 +268,7 @@ def generate_tfvars(source_filename, values, modules):
     lines = []
 
     lines.append(f'#{"=" * 79}')
-    lines.append(f"# Cortex XDR {mode_labels[mode]} - Terraform Variables")
+    lines.append(f"# Cortex Cloud {mode_labels[mode]} - Terraform Variables")
     lines.append(f"# Generated from: {source_filename}")
     lines.append(f'#{"=" * 79}')
     lines.append("")
@@ -400,7 +400,7 @@ def generate_tfvars(source_filename, values, modules):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate terraform.tfvars from a Cortex XDR CloudFormation template."
+        description="Generate terraform.tfvars from a Cortex Cloud CloudFormation template."
     )
     parser.add_argument("cf_template", help="Path to the CF YAML template file")
     parser.add_argument(

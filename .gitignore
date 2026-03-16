@@ -36,6 +36,7 @@ terraform.rc
 
 # Generated files
 *.auto.tfvars
+lambda_function.zip
 
 # SSH keys
 *.pem
@@ -54,3 +55,6 @@ build/
 .venv/
 venv/
 *.egg
+cortex-aws-connector.code-workspace
+lambda_function.zip
+.DS_Store
