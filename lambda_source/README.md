@@ -1,8 +1,8 @@
-# Lambda Source: Cortex XDR Organization Connector Registration
+# Lambda Source: Cortex Cloud Organization Connector Registration
 
 ## Purpose
 
-This Lambda function registers an AWS Organization with Cortex XDR by sending a JSON payload to a signed Google Cloud Storage URL. It is invoked once during `terraform apply` via `aws_lambda_invocation` and is **not** called again on subsequent runs (the invocation uses `lifecycle { ignore_changes = [input] }`).
+This Lambda function registers an AWS Organization with Cortex Cloud by sending a JSON payload to a signed Google Cloud Storage URL. It is invoked once during `terraform apply` via `aws_lambda_invocation` and is **not** called again on subsequent runs (the invocation uses `lifecycle { ignore_changes = [input] }`).
 
 Unlike the account connector Lambda, this handler also queries the AWS Organizations API to retrieve the Organization ID (`csp_org_id`), which is included in the registration payload.
 
@@ -17,7 +17,7 @@ Unlike the account connector Lambda, this handler also queries the AWS Organizat
 
 ## Adaptation from CloudFormation
 
-This code was adapted from the original CloudFormation Custom Resource Lambda embedded in the Cortex XDR YAML template (`Code.ZipFile`). The two handlers produce **identical HTTP requests** to the Cortex API, but differ in how they interface with their respective orchestrators.
+This code was adapted from the original CloudFormation Custom Resource Lambda embedded in the Cortex Cloud YAML template (`Code.ZipFile`). The two handlers produce **identical HTTP requests** to the Cortex API, but differ in how they interface with their respective orchestrators.
 
 ### What changed
 
